@@ -12,7 +12,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports:
-      - "3005:3005"
+      - "3005:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
@@ -54,7 +54,7 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-spectra}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-spectra_platform}
       JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-24h}
-      FRONTEND_URL: http://spectrapro.ai
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3005}
       LOG_LEVEL: ${LOG_LEVEL:-info}
       OLLAMA_API_URL: ${OLLAMA_API_URL:-}
       OLLAMA_MODEL: ${OLLAMA_MODEL:-}
@@ -72,8 +72,8 @@ services:
       context: ./platform/frontend
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_URL: http://192.168.1.116:3005
-        NEXT_PUBLIC_APP_URL: http://192.168.1.116:3005
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3005}
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3005}
     restart: unless-stopped
     environment:
       NODE_ENV: production

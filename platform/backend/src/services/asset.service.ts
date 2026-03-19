@@ -34,7 +34,44 @@ interface CreateAssetData {
   source?: string[];
 }
 
+type AssetIdentifierFields = {
+  name?: string | null;
+  hostname?: string | null;
+  url?: string | null;
+  ipAddress?: string | null;
+};
+
 export class AssetService {
+  private deriveIdentifier(asset: AssetIdentifierFields) {
+    return asset.hostname || asset.url || asset.ipAddress || asset.name || 'Unknown';
+  }
+
+  private withIdentifier<T extends AssetIdentifierFields>(asset: T): T & { identifier: string } {
+    return {
+      ...asset,
+      identifier: this.deriveIdentifier(asset),
+    };
+  }
+
+  private buildAssetWriteData(data: Partial<CreateAssetData>) {
+    return {
+      name: data.name,
+      type: data.type,
+      environment: data.environment,
+      criticality: data.criticality,
+      ipAddress: data.ipAddress,
+      ipAddresses: data.ipAddresses,
+      hostname: data.hostname,
+      url: data.url,
+      services: data.services,
+      parentAssetId: data.parentAssetId,
+      description: data.description,
+      tags: data.tags,
+      owner: data.owner,
+      source: data.source,
+    };
+  }
+
   /**
    * List assets with filtering and pagination
    */
@@ -97,7 +134,7 @@ export class AssetService {
     const totalPages = Math.ceil(total / limit);
 
     return {
-      assets,
+      assets: assets.map((asset) => this.withIdentifier(asset)),
       total,
       page,
       limit,
@@ -115,7 +152,36 @@ export class AssetService {
         id,
         tenantId,
       },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        type: true,
+        environment: true,
+        criticality: true,
+        ipAddress: true,
+        ipAddresses: true,
+        hostname: true,
+        url: true,
+        services: true,
+        parentAssetId: true,
+        description: true,
+        tags: true,
+        owner: true,
+        source: true,
+        riskScore: true,
+        vulnCount: true,
+        criticalVulnCount: true,
+        highVulnCount: true,
+        mediumVulnCount: true,
+        lowVulnCount: true,
+        infoVulnCount: true,
+        scanCount: true,
+        firstSeen: true,
+        lastSeen: true,
+        lastScanAt: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
         createdBy: {
           select: {
             id: true,
@@ -140,7 +206,7 @@ export class AssetService {
       throw new AppError(404, 'ASSET_NOT_FOUND', 'Asset not found');
     }
 
-    return asset;
+    return this.withIdentifier(asset);
   }
 
   /**
@@ -154,7 +220,7 @@ export class AssetService {
     const asset = await prisma.assets.create({
       data: {
         id: randomUUID(),
-        ...data,
+        ...this.buildAssetWriteData(data),
         tenantId,
         createdById: userId,
         updatedAt: new Date(),
@@ -164,7 +230,7 @@ export class AssetService {
     // Create audit log
     await this.createAuditLog(tenantId, userId, 'CREATE', 'Asset', asset.id);
 
-    return asset;
+    return this.withIdentifier(asset);
   }
 
   /**
@@ -186,10 +252,10 @@ export class AssetService {
 
     const asset = await prisma.assets.update({
       where: { id },
-      data,
+      data: this.buildAssetWriteData(data),
     });
 
-    return asset;
+    return this.withIdentifier(asset);
   }
 
   /**
@@ -346,7 +412,7 @@ export class AssetService {
         },
       });
 
-      return { asset: updated, isNew: false };
+      return { asset: this.withIdentifier(updated), isNew: false };
     }
 
     // Create new asset (remove identifier field as it doesn't exist in schema)
@@ -375,7 +441,7 @@ export class AssetService {
 
     await this.createAuditLog(tenantId, userId, 'CREATE', 'Asset', asset.id);
 
-    return { asset, isNew: true };
+    return { asset: this.withIdentifier(asset), isNew: true };
   }
 
   /**
@@ -494,6 +560,9 @@ export class AssetService {
             id: true,
             name: true,
             type: true,
+            hostname: true,
+            url: true,
+            ipAddress: true,
             riskScore: true,
             vulnCount: true,
           },
@@ -504,6 +573,9 @@ export class AssetService {
             id: true,
             name: true,
             type: true,
+            hostname: true,
+            url: true,
+            ipAddress: true,
             riskScore: true,
             vulnCount: true,
             criticalVulnCount: true,
@@ -519,14 +591,14 @@ export class AssetService {
     }
 
     return {
-      parent: asset.parentAsset,
+      parent: asset.parentAsset ? this.withIdentifier(asset.parentAsset) : undefined,
       current: {
         id: asset.id,
         name: asset.name,
         type: asset.type,
-        identifier: asset.hostname || asset.url || asset.ipAddress || asset.name,
+        identifier: this.deriveIdentifier(asset),
       },
-      children: asset.childAssets,
+      children: asset.childAssets.map((child) => this.withIdentifier(child)),
     };
   }
 
