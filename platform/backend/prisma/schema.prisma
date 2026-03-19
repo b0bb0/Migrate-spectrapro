@@ -52,7 +52,6 @@ model assets {
   type                AssetType
   environment         AssetEnvironment      @default(PRODUCTION)
   criticality         AssetCriticality      @default(MEDIUM)
-  identifier          String?
   ipAddress           String?
   hostname            String?
   url                 String?
@@ -96,7 +95,6 @@ model assets {
   @@index([riskScore])
   @@index([tenantId])
   @@index([type])
-  @@index([identifier])
 }
 
 model audit_logs {
