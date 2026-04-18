@@ -19,6 +19,11 @@ if ! command -v node &> /dev/null; then
 fi
 
 NODE_VERSION=$(node -v | cut -d'v' -f2 | cut -d'.' -f1)
+if [ "$NODE_VERSION" -lt 20 ]; then
+    echo "❌ Node.js 20+ required (found: $(node -v))"
+    exit 1
+fi
+
 echo "✓ Node.js $(node -v)"
 
 # Check .env file
